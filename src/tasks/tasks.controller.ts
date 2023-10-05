@@ -6,6 +6,9 @@ import {
   Delete,
   Put,
   Body,
+  ConflictException,
+  NotFoundException,
+  HttpCode,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from 'src/dto/create-task.dto';
@@ -16,29 +19,44 @@ export class TasksController {
   constructor(private tasksService: TasksService) {}
 
   @Get()
-  getAllTasks() {
-    return this.tasksService.findAll();
+  async getAllTasks() {
+    const allTasks = await this.tasksService.findAll();
+    if (allTasks.length === 0)
+      throw new NotFoundException('No hay tareas en la Db');
+    return allTasks;
   }
 
   @Get(':id')
-  getTask(@Param('id') id: string) {
-    console.log('id recibido', id);
-    return this.tasksService.findOne(id);
+  async getTask(@Param('id') id: string) {
+    const task = await this.tasksService.findOne(id);
+    if (!task) throw new NotFoundException('Tarea no encontrada');
+    return task;
   }
 
   @Post()
-  postTask(@Body() createTaskDto: CreateTaskDto) {
-    return this.tasksService.create(createTaskDto);
+  async postTask(@Body() createTaskDto: CreateTaskDto) {
+    try {
+      return await this.tasksService.create(createTaskDto);
+    } catch (error) {
+      if (error.code === 11000) {
+        throw new ConflictException('La tarea ya existe');
+      }
+      throw error;
+    }
   }
 
   @Delete(':id')
-  deleteTask(@Param('id') id: string) {
-    return this.tasksService.delete(id);
+  @HttpCode(204)
+  async deleteTask(@Param('id') id: string) {
+    const task = await this.tasksService.delete(id);
+    if (!task) throw new NotFoundException('Tarea no encontrada');
+    return task;
   }
 
   @Put(':id')
-  putTask(@Param('id') id: string, @Body() updateTaskDto: UpdateTaskDto) {
-    console.log(id, updateTaskDto);
-    return this.tasksService.update(id, updateTaskDto);
+  async putTask(@Param('id') id: string, @Body() updateTaskDto: UpdateTaskDto) {
+    const task = await this.tasksService.update(id, updateTaskDto);
+    if (!task) throw new NotFoundException('tarea no encontrada');
+    return task;
   }
 }
