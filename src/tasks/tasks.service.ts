@@ -1,46 +1,31 @@
 import { Injectable } from '@nestjs/common';
-import { Task, TaskStatus } from './entities/task.entity';
-import { v4 } from 'uuid';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Task } from '../schemas/task.schema';
+import { Model } from 'mongoose';
+import { CreateTaskDto } from '../dto/create-task.dto';
+import { UpdateTaskDto } from '../dto/update-task.dto';
 
 @Injectable()
 export class TasksService {
-  private tasks: Task[] = [
-    {
-      id: '1',
-      title: 'first task',
-      description: 'some task',
-      status: TaskStatus.PENDING,
-    },
-  ];
+  constructor(@InjectModel(Task.name) private taskModel: Model<Task>) {}
 
-  getTasks() {
-    return this.tasks;
+  findAll() {
+    return this.taskModel.find();
+  }
+  async create(createTask: CreateTaskDto) {
+    const newTask = new this.taskModel(createTask);
+    return newTask.save();
   }
 
-  getTaskById(id: string): Task {
-    return this.tasks.find((task) => task.id === id);
+  async findOne(id: string) {
+    return this.taskModel.findById(id);
   }
 
-  createTask(title: string, description: string) {
-    const task = {
-      id: v4(),
-      title,
-      description,
-      status: TaskStatus.PENDING,
-    };
-    this.tasks.push(task);
-
-    return task;
-  }
-  deleteTask(id: string) {
-    this.tasks = this.tasks.filter((task) => task.id !== id);
+  async delete(id: string) {
+    return this.taskModel.findByIdAndDelete(id);
   }
 
-  updateTask(id: string, taskUpdateDto: UpdateTaskDto): Task {
-    const task = this.getTaskById(id);
-    const newTask = Object.assign(task, taskUpdateDto);
-    this.tasks = this.tasks.map((task) => (task.id === id ? newTask : task));
-    return newTask;
+  async update(id: string, task: UpdateTaskDto) {
+    return this.taskModel.findByIdAndUpdate(id, task, { new: true });
   }
 }
